@@ -8,9 +8,26 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
+use AppBundle\Controller\DataController;
 
 class DefaultController extends Controller
 {
+
+    public $available_fields = array(
+        'type',
+        'installation',
+        'nbr_moteurs',
+        'largeur',
+        'afficheur',
+        'largeur_cheminee',
+        'chapeau',
+        'moteur',
+        'capacite',
+        'ref_moteur',
+        'photos'
+    );
+
+
     /**
      * @Route("/", name="homepage")
      */
@@ -28,102 +45,108 @@ class DefaultController extends Controller
     public function xlsAction(Request $request)
     {
         // replace this example code with whatever you need
-        return new Response("Goucou");
+
+        $service = $this->container->get('raw_json_data');
+
+        return new Response($service->getData($request));
     }
 
-    public function allAction($_locale)
+    public function allAction(Request $request, $_locale)
     {
 
-        $inputFileName = $this->get('kernel')->getRootDir() . '/../Tableau hottes de cuisine.xls';
+        $data = $this->_loadRawData($request, $_locale);
 
-        /* Load $inputFileName to a PHPExcel Object  */
-        $objPHPExcel = \PHPExcel_IOFactory::load($inputFileName);
-        $myWorksheetListInfo = $this->_getWorksheetListInfo($inputFileName);
+        /*
+         *
+         *  Filter results by Values
+         *
+         * */
+
+        if ($request->query->get('filter')) {
+
+            $filters = json_decode($request->query->get('filter'), true);
+
+            $data = array_filter($data, function ($el) use ($filters) {
+
+                foreach ($filters as $filterName => $filterVal) {
+
+                    if ($el[$filterName] != $filterVal) {
+                        return false;
+                    }
+
+                }
+
+                //the element passed all the filters => we keep it.
+                return true;
 
 
-
-        $objPHPExcel->setActiveSheetIndex(0);
-        $row = $objPHPExcel->getActiveSheet()->getHighestRow() + 1;
-
-
-
-        $objWorksheet =$objPHPExcel->getActiveSheet();
-        $maxRow = 1;
-        $maxCol = 11;
-        $total = $myWorksheetListInfo[0]['totalRows'] - 1; // Removing the header row.
-        $output = "total=".urlencode($total); //First echo of all variables
-        $error="non";
-//echo $objPHPExcel->getActiveSheet()->getCell('B8')->getValue();
-//echo 'doooo='. $objPHPExcel->getActiveSheet()->getCellByColumnAndRow(9,6)->getValue(). 'oood';
-        $col = 0;
-        $data = array();
-
-        for ($row = 0; $row <= $total; $row++) {
-
-
-            $data [] = array (
-                'type' => urlencode($objWorksheet->getCellByColumnAndRow($col, $row+2)->getValue()),
-                'installation' => urlencode($objWorksheet->getCellByColumnAndRow($col, $row+2)->getValue()),
-                'largeur' => urlencode($objWorksheet->getCellByColumnAndRow($col+1, $row + 2)->getValue()),
-                'afficheur' => urlencode($objWorksheet->getCellByColumnAndRow($col +4, $row + 2)->getValue()),
-                'largeur' => urlencode($objWorksheet->getCellByColumnAndRow($col +5, $row + 2)->getValue()),
-                'chapeau' => urlencode($objWorksheet->getCellByColumnAndRow($col +6, $row + 2)->getValue()),
-                'moteur' => urlencode($objWorksheet->getCellByColumnAndRow($col +7, $row + 2)->getValue()),
-                'capacite' => urlencode($objWorksheet->getCellByColumnAndRow($col +8, $row + 2)->getValue()),
-                'photos' => urlencode($objWorksheet->getCellByColumnAndRow($col +10, $row + 2)->getValue()),
-            );
+            });
 
         }
 
 
+        /*
+         *
+         *  Sort Params
+         *
+         * */
+        if ($request->query->get('sort')) {
+            $field = $request->query->get('sort');
+
+            if (count(explode('-', $field)) == 1) {
+                //1   Ascending
+                $sort_direction = SORT_ASC;
+            } else {
+                //2  "-"  is there
+                $sort_direction = SORT_DESC;
+                $field = explode('-', $field)[1];
+            }
+
+            $row_array = array();
+            foreach ($data as $key => $row) {
+                $row_array[$key] = $row[$field];
+            }
+            array_multisort($row_array, $sort_direction, $data);
+
+        }
 
 
-
-        $json = array('meta' => array('total' => 100000),
+        $json = array('meta' => array('total' => count($data)),
             'data' => $data);
 
         return new JsonResponse($json);
     }
 
-
-    /**
-     * @Route("/fake", name="fake")
-     */
-    public function fakeAction(Request $request)
+    public function distinctAction(Request $request, $_locale, $field)
     {
 
-        // ask the service for a Excel5
-        $phpExcelObject = $this->get('phpexcel')->createPHPExcelObject();
 
-        $phpExcelObject->getProperties()->setCreator("liuggio")
-            ->setLastModifiedBy("Giulio De Donato")
-            ->setTitle("Office 2005 XLSX Test Document")
-            ->setSubject("Office 2005 XLSX Test Document")
-            ->setDescription("Test document for Office 2005 XLSX, generated using PHP classes.")
-            ->setKeywords("office 2005 openxml php")
-            ->setCategory("Test result file");
-        $phpExcelObject->setActiveSheetIndex(0)
-            ->setCellValue('A1', 'Hello')
-            ->setCellValue('B2', 'world!');
-        $phpExcelObject->getActiveSheet()->setTitle('Simple');
-        // Set active sheet index to the first sheet, so Excel opens this as the first sheet
-        $phpExcelObject->setActiveSheetIndex(0);
+        if (!in_array($field, $this->available_fields)) {
 
-        // create the writer
-        $writer = $this->get('phpexcel')->createWriter($phpExcelObject, 'Excel5');
-        // create the response
-        $response = $this->get('phpexcel')->createStreamedResponse($writer);
-        // adding headers
-        $dispositionHeader = $response->headers->makeDisposition(
-            ResponseHeaderBag::DISPOSITION_ATTACHMENT,
-            'stream-file.xls'
-        );
-        $response->headers->set('Content-Type', 'text/vnd.ms-excel; charset=utf-8');
-        $response->headers->set('Pragma', 'public');
-        $response->headers->set('Cache-Control', 'maxage=1');
-        $response->headers->set('Content-Disposition', $dispositionHeader);
+            throw new \Exception("[Arouatek] the field: '$field' is not available ", 1);
+        }
 
-        return $response;
+
+        $data = $this->_loadRawData($request, $_locale);
+
+        $distinctValues = $this->_unique_multidim_array($data, $field);
+
+
+        $distinctValues_reduced = array_reduce($distinctValues, function ($carry, $item) use ($field) {
+            if ($item[$field]) {
+                $carry [] = $item[$field];
+            }
+            return $carry;
+
+        }, []);
+
+
+        $json = array('meta' => array('total' => count($distinctValues_reduced)),
+            'data' => $distinctValues_reduced);
+
+        return new JsonResponse($json);
+
+
     }
 
 
@@ -159,5 +182,82 @@ class DefaultController extends Controller
             return $WorksheetListInfo;
         }
     }
+
+    public function _unique_multidim_array($array, $key)
+    {
+        $temp_array = array();
+        $i = 0;
+        $key_array = array();
+
+        foreach ($array as $val) {
+            if (!in_array($val[$key], $key_array)) {
+                $key_array[$i] = $val[$key];
+                $temp_array[$i] = $val;
+            }
+            $i++;
+        }
+        return $temp_array;
+    }
+
+    public function _compare_fullname($a, $b, $field)
+    {
+        return strnatcmp($a[$field], $b[$field]);
+    }
+
+    public function _loadRawData($request, $_locale)
+    {
+
+
+        $inputFileName = $this->get('kernel')->getRootDir() . '/../Tableau hottes de cuisine' . (($_locale == 'en') ? '_en' : '') . '.xls';
+
+        /* Load $inputFileName to a PHPExcel Object  */
+        $objPHPExcel = \PHPExcel_IOFactory::load($inputFileName);
+        $myWorksheetListInfo = $this->_getWorksheetListInfo($inputFileName);
+
+        $objPHPExcel->setActiveSheetIndex(0);
+        $row = $objPHPExcel->getActiveSheet()->getHighestRow() + 1;
+
+        $objWorksheet = $objPHPExcel->getActiveSheet();
+        $maxRow = 1;
+        $maxCol = 11;
+        $total = $myWorksheetListInfo[0]['totalRows'] - 1; // Removing the header row.
+        $output = "total=" . urlencode($total); //First echo of all variables
+        $error = "non";
+        $col = 0;
+        $data = array();
+
+
+        /*
+         *  Query Params
+         *
+         * */
+
+        if ($request->query->get('limit') > 0) {
+            $total = $request->query->get('limit');
+        }
+
+
+        for ($row = 0; $row <= $total; $row++) {
+
+
+            $data [] = array(
+                'type' => urlencode($objWorksheet->getCellByColumnAndRow($col, $row + 2)->getValue()),
+                'installation' => urlencode($objWorksheet->getCellByColumnAndRow($col + 1, $row + 2)->getValue()),
+                'nbr_moteurs' => urlencode($objWorksheet->getCellByColumnAndRow($col + 2, $row + 2)->getValue()),
+                'largeur' => urlencode($objWorksheet->getCellByColumnAndRow($col + 3, $row + 2)->getValue()),
+                'afficheur' => urlencode($objWorksheet->getCellByColumnAndRow($col + 4, $row + 2)->getValue()),
+                'largeur_cheminee' => urlencode($objWorksheet->getCellByColumnAndRow($col + 5, $row + 2)->getValue()),
+                'chapeau' => urlencode($objWorksheet->getCellByColumnAndRow($col + 6, $row + 2)->getValue()),
+                'moteur' => urlencode($objWorksheet->getCellByColumnAndRow($col + 7, $row + 2)->getValue()),
+                'capacite' => urlencode($objWorksheet->getCellByColumnAndRow($col + 8, $row + 2)->getValue()),
+                'ref_moteur' => urlencode($objWorksheet->getCellByColumnAndRow($col + 9, $row + 2)->getValue()),
+                'photos' => urlencode($objWorksheet->getCellByColumnAndRow($col + 10, $row + 2)->getValue()),
+            );
+        }
+
+        return $data;
+
+    }
+
 
 }

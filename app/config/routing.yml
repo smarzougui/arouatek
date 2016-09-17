@@ -7,3 +7,9 @@ hottes_api:
   defaults: { _controller: AppBundle:Default:all}
   requirements:
       _locale:  en|fr
+
+hottes_distincts:
+  path:     /hottes/{_locale}/distinct/{field}
+  defaults: { _controller: AppBundle:Default:distinct}
+  requirements:
+      _locale:  en|fr

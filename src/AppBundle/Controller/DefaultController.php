@@ -61,27 +61,17 @@ class DefaultController extends Controller
          *  Filter results by Values
          *
          * */
-
         if ($request->query->get('filter')) {
-
             $filters = json_decode($request->query->get('filter'), true);
-
             $data = array_filter($data, function ($el) use ($filters) {
-
                 foreach ($filters as $filterName => $filterVal) {
-
                     if ($el[$filterName] != $filterVal) {
                         return false;
                     }
-
                 }
-
                 //the element passed all the filters => we keep it.
                 return true;
-
-
             });
-
         }
 
 
@@ -128,6 +118,25 @@ class DefaultController extends Controller
 
 
         $data = $this->_loadRawData($request, $_locale);
+
+        /*
+         *
+         *  Filter results by Values
+         *
+         * */
+        if ($request->query->get('filter')) {
+            $filters = json_decode($request->query->get('filter'), true);
+            $data = array_filter($data, function ($el) use ($filters) {
+                foreach ($filters as $filterName => $filterVal) {
+                    if ($el[$filterName] != $filterVal) {
+                        return false;
+                    }
+                }
+                //the element passed all the filters => we keep it.
+                return true;
+            });
+        }
+
 
         $distinctValues = $this->_unique_multidim_array($data, $field);
 

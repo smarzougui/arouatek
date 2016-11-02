@@ -27,7 +27,6 @@ class DefaultController extends Controller
         'photos'
     );
 
-
     /**
      * @Route("/", name="homepage")
      */
@@ -63,6 +62,8 @@ class DefaultController extends Controller
          * */
         if ($request->query->get('filter')) {
             $filters = json_decode($request->query->get('filter'), true);
+            $meta ['filters'] = $filters;
+
             $data = array_filter($data, function ($el) use ($filters) {
                 foreach ($filters as $filterName => $filterVal) {
                     if ($el[$filterName] != $filterVal) {
@@ -74,15 +75,17 @@ class DefaultController extends Controller
             });
         }
 
-
         /*
          *
          *  Sort Params
          *
          * */
         if ($request->query->get('sort')) {
+
+
             $field = $request->query->get('sort');
 
+            $meta ['sort'] = $field;
             if (count(explode('-', $field)) == 1) {
                 //1   Ascending
                 $sort_direction = SORT_ASC;
@@ -97,11 +100,11 @@ class DefaultController extends Controller
                 $row_array[$key] = $row[$field];
             }
             array_multisort($row_array, $sort_direction, $data);
-
         }
 
 
-        $json = array('meta' => array('total' => count($data)),
+        $meta ['total'] =  count($data);
+        $json = array('meta' => $meta,
             'data' => $data);
 
         return new JsonResponse($json);
@@ -126,6 +129,9 @@ class DefaultController extends Controller
          * */
         if ($request->query->get('filter')) {
             $filters = json_decode($request->query->get('filter'), true);
+
+            $meta ['filters'] = $filters;
+
             $data = array_filter($data, function ($el) use ($filters) {
                 foreach ($filters as $filterName => $filterVal) {
                     if ($el[$filterName] != $filterVal) {
@@ -150,8 +156,10 @@ class DefaultController extends Controller
         }, []);
 
 
-        $json = array('meta' => array('total' => count($distinctValues_reduced)),
+        $meta ['total'] =  count($distinctValues_reduced);
+        $json = array('meta' => $meta,
             'data' => $distinctValues_reduced);
+
 
         return new JsonResponse($json);
 

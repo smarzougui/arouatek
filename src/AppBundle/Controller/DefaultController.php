@@ -102,12 +102,17 @@ class DefaultController extends Controller
             array_multisort($row_array, $sort_direction, $data);
         }
 
-
-        $meta ['total'] =  count($data);
+        $meta ['total'] = count($data);
         $json = array('meta' => $meta,
-            'data' => $data);
+            'data' =>  array_values($data));
 
-        return new JsonResponse($json);
+        $response = new JsonResponse();
+        $response->headers->set('Content-Type', 'application/json; charset=UTF-8');
+        $response->headers->set('charset', 'utf-8');
+        $response->setEncodingOptions(JSON_UNESCAPED_SLASHES);
+        $response->setData($json);
+        return $response;
+
     }
 
     public function distinctAction(Request $request, $_locale, $field)
@@ -156,7 +161,7 @@ class DefaultController extends Controller
         }, []);
 
 
-        $meta ['total'] =  count($distinctValues_reduced);
+        $meta ['total'] = count($distinctValues_reduced);
         $json = array('meta' => $meta,
             'data' => $distinctValues_reduced);
 
@@ -243,7 +248,6 @@ class DefaultController extends Controller
         $col = 0;
         $data = array();
 
-
         /*
          *  Query Params
          *
@@ -253,22 +257,20 @@ class DefaultController extends Controller
             $total = $request->query->get('limit');
         }
 
-
         for ($row = 0; $row <= $total; $row++) {
 
-
             $data [] = array(
-                'type' => urlencode($objWorksheet->getCellByColumnAndRow($col, $row + 2)->getValue()),
-                'installation' => urlencode($objWorksheet->getCellByColumnAndRow($col + 1, $row + 2)->getValue()),
-                'nbr_moteurs' => urlencode($objWorksheet->getCellByColumnAndRow($col + 2, $row + 2)->getValue()),
-                'largeur' => urlencode($objWorksheet->getCellByColumnAndRow($col + 3, $row + 2)->getValue()),
-                'afficheur' => urlencode($objWorksheet->getCellByColumnAndRow($col + 4, $row + 2)->getValue()),
-                'largeur_cheminee' => urlencode($objWorksheet->getCellByColumnAndRow($col + 5, $row + 2)->getValue()),
-                'chapeau' => urlencode($objWorksheet->getCellByColumnAndRow($col + 6, $row + 2)->getValue()),
-                'moteur' => urlencode($objWorksheet->getCellByColumnAndRow($col + 7, $row + 2)->getValue()),
-                'capacite' => urlencode($objWorksheet->getCellByColumnAndRow($col + 8, $row + 2)->getValue()),
-                'ref_moteur' => urlencode($objWorksheet->getCellByColumnAndRow($col + 9, $row + 2)->getValue()),
-                'photos' => urlencode($objWorksheet->getCellByColumnAndRow($col + 10, $row + 2)->getValue()),
+                'type' => $objWorksheet->getCellByColumnAndRow($col, $row + 2)->getValue(),
+                'installation' => $objWorksheet->getCellByColumnAndRow($col + 1, $row + 2)->getValue(),
+                'nbr_moteurs' => $objWorksheet->getCellByColumnAndRow($col + 2, $row + 2)->getValue(),
+                'largeur' => $objWorksheet->getCellByColumnAndRow($col + 3, $row + 2)->getValue(),
+                'afficheur' => $objWorksheet->getCellByColumnAndRow($col + 4, $row + 2)->getValue(),
+                'largeur_cheminee' => $objWorksheet->getCellByColumnAndRow($col + 5, $row + 2)->getValue(),
+                'chapeau' => $objWorksheet->getCellByColumnAndRow($col + 6, $row + 2)->getValue(),
+                'moteur' => $objWorksheet->getCellByColumnAndRow($col + 7, $row + 2)->getValue(),
+                'capacite' => $objWorksheet->getCellByColumnAndRow($col + 8, $row + 2)->getValue(),
+                'ref_moteur' => $objWorksheet->getCellByColumnAndRow($col + 9, $row + 2)->getValue(),
+                'photos' => $objWorksheet->getCellByColumnAndRow($col + 10, $row + 2)->getValue(),
             );
         }
 
